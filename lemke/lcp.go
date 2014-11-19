@@ -67,6 +67,14 @@ func NewLCP(M []*big.Rat, q []*big.Rat) (*LCP, error) {
 	return lcp, nil
 }
 
+func (lcp *LCP) M(i int, j int) *big.Rat {
+	return lcp.m[i*lcp.n+j]
+}
+
+func (lcp *LCP) Q(i int) *big.Rat {
+	return lcp.q[i]
+}
+
 /*
  * init tableau variables:
  * Z(0)...Z(n)  nonbasic,  W(1)...W(n) basic
