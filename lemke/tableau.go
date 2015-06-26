@@ -64,16 +64,17 @@ func (A *tableau) pivotOnRowCol(row int, col int) error {
 				if j != col {
 
 					//A[i,j] = (A[i,j] A[row,col] - A[i,col] A[row,j]) / det
-					tmp1 := new(big.Int).Mul(pivelt, A.entry(i, j))
+					entryIJ := A.entry(i, j)
+					entryIJ.Mul(entryIJ, pivelt)
 					if nonzero {
-						tmp2 := new(big.Int).Mul(entry, A.entry(row, j))
+						tmp := new(big.Int).Mul(entry, A.entry(row, j))
 						if negpiv {
-							tmp1.Add(tmp1, tmp2)
+							entryIJ.Add(entryIJ, tmp)
 						} else {
-							tmp1.Sub(tmp1, tmp2)
+							entryIJ.Sub(entryIJ, tmp)
 						}
 					}
-					A.set(i, j, tmp1.Div(tmp1, A.det))
+					entryIJ.Div(entryIJ, A.det)
 				}
 			}
 			if nonzero && !negpiv {
