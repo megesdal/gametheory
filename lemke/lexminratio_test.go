@@ -12,66 +12,67 @@ import (
 func TestLexMinVar(t *testing.T) {
 
 	n := 2
-	lcp := &LCP{n: n}
-	lcp.initVars()
-	lcp.a = newTableau(n, n+2)
+	a := newTableau(n, n+2)
 
-	lcp.a.set(0, 0, big.NewInt(2))
-	lcp.a.set(0, 1, big.NewInt(2))
-	lcp.a.set(0, 2, big.NewInt(1))
-	lcp.a.set(0, 3, big.NewInt(-1))
-	lcp.a.set(1, 0, big.NewInt(1))
-	lcp.a.set(1, 1, big.NewInt(1))
-	lcp.a.set(1, 2, big.NewInt(3))
-	lcp.a.set(1, 3, big.NewInt(-1))
+	a.set(0, 0, big.NewInt(2))
+	a.set(0, 1, big.NewInt(2))
+	a.set(0, 2, big.NewInt(1))
+	a.set(0, 3, big.NewInt(-1))
+	a.set(1, 0, big.NewInt(1))
+	a.set(1, 1, big.NewInt(1))
+	a.set(1, 2, big.NewInt(3))
+	a.set(1, 3, big.NewInt(-1))
 
+	vars := newTableauVariables(n)
 	// TODO: if I give lexmin a bascobas lookup function instead of full lcp, that should suffice
-	leave, z0leave, err := lexminratio(lcp, lcp.z(0))
-	assert.Equal(t, 4, leave, "w2 = 4 is leaving")
+	leave, z0leave, err := lexminratio(a, vars, vars.z(0))
+	assert.Equal(t, vars.w(2), leave, "w2 = 4 is leaving")
 	assert.Equal(t, false, z0leave, "z0 is not leaving")
 	assert.Nil(t, err, "No ray termination")
 
-	leave, z0leave, err = lexminratio(lcp, lcp.z(1))
-	assert.Equal(t, 4, leave, "w2 = 4 is leaving")
+	leave, z0leave, err = lexminratio(a, vars, vars.z(1))
+	assert.Equal(t, vars.w(2), leave, "w2 = 4 is leaving")
 	assert.Equal(t, false, z0leave, "z0 is not leaving")
 	assert.Nil(t, err, "No ray termination")
 
-	leave, z0leave, err = lexminratio(lcp, lcp.z(2))
-	assert.Equal(t, 3, leave, "w1 = 3 is leaving")
+	leave, z0leave, err = lexminratio(a, vars, vars.z(2))
+	assert.Equal(t, vars.w(1), leave, "w1 = 3 is leaving")
 	assert.Equal(t, false, z0leave, "z0 is not leaving")
 	assert.Nil(t, err, "No ray termination")
 
-	_, _, err = lexminratio(lcp, lcp.w(1))
+  // TODO: expect panic...
+	/*_, _, err = lexminratio(a, vars, vars.w(1))
 	assert.NotNil(t, err, "Should be an error")
 	assert.Equal(t, "Variable w1 is already in basis. Must be cobasic to enter.", err.Error())
 
-	_, _, err = lexminratio(lcp, lcp.w(2))
+	_, _, err = lexminratio(a, vars, vars.w(2))
 	assert.NotNil(t, err, "Should be an error")
 	assert.Equal(t, "Variable w2 is already in basis. Must be cobasic to enter.", err.Error())
-
+  */
 }
 
+// TODO: make this a benchmark test...
 func Test1000LexMinVarOnLargeTableu(t *testing.T) {
 
 	n := 1000
-	lcp := &LCP{n: n}
-	lcp.initVars()
-	lcp.a = newTableau(n, n+2)
+	a := newTableau(n, n+2)
 
-	for i := 0; i < lcp.a.nrows; i++ {
-		for j := 0; j < lcp.a.ncols; j++ {
+	for i := 0; i < a.nrows; i++ {
+		for j := 0; j < a.ncols; j++ {
 			if j == 0 {
-				lcp.a.set(i, j, big.NewInt(1))
+				a.set(i, j, big.NewInt(1))
 			} else {
-				lcp.a.set(i, j, big.NewInt(int64((i-(j-1))*((j*17)-(i*63)))))
+				a.set(i, j, big.NewInt(int64((i-(j-1))*((j*17)-(i*63)))))
 			}
 		}
 	}
 
+  vars := newTableauVariables(n)
+
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		leave, z0leave, err := lexminratio(lcp, 0)
-		assert.Equal(t, 1001, leave)
+		leave, z0leave, err := lexminratio(a, vars, vars.z(0))
+		assert.Equal(t, 1001, leave.idx)
 		assert.Equal(t, false, z0leave)
 		assert.Nil(t, err)
 	}

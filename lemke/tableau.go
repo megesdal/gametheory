@@ -1,7 +1,6 @@
 package lemke
 
 import (
-	"errors"
 	"math/big"
 )
 
@@ -42,12 +41,12 @@ func isZero(num *big.Int) bool {
 	return num.Sign() == 0
 }
 
-func (A *tableau) pivotOnRowCol(row int, col int) error {
+func (A *tableau) pivotOnRowCol(row int, col int) {
 
 	pivelt := A.entry(row, col) /* pivelt anyhow later new determinant  */
 
 	if pivelt.Sign() == 0 {
-		return errors.New("Trying to pivot on a zero")
+		panic("Trying to pivot on a zero")
 	}
 
 	negpiv := false
@@ -90,7 +89,6 @@ func (A *tableau) pivotOnRowCol(row int, col int) error {
 	}
 
 	A.det = pivelt //by construction always positive
-	return nil
 }
 
 /*

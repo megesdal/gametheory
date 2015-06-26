@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/megesdal/gametheory/util"
 )
-
-type bascobas int
 
 // LCP (aka. Linear Complementarity Problem)
 // =============================================================================
@@ -37,34 +34,27 @@ type LCP struct {
 	 */
 	scfa []*big.Int
 
-	/*  v in VARS, v cobasic:  TABCOL(v) is v's tableau col */
-	/*  v  basic:  TABCOL(v) < 0,  TABCOL(v)+n   is v's row */
-	/* VARS   = 0..2n = Z(0) .. Z(n) W(1) .. W(n)           */
-	/* ROWCOL = 0..2n,  0 .. n-1: tabl rows (basic vars)    */
-	/*                  n .. 2n:  tabl cols  0..n (cobasic) */
-	vars2rowcol []int
-	rowcol2vars []bascobas
+	vars *tableauVariables
 }
 
-func NewLCP(M []*big.Rat, q []*big.Rat) (*LCP, error) {
+func NewLCP(M []*big.Rat, q []*big.Rat) *LCP {
 
-	if len(M)%len(q) != 0 {
-		return nil, errors.New("M and q are not right dimensions")
+	n := len(q)
+	if len(M)%n != 0 {
+		panic("M.rows and q are not same dimensions")
 	}
 
-	ncols := len(M) / len(q)
-	nrows := len(q)
-	log.Printf("Creating LCP with matrix M [%dx%d] and vector q [%dx1]\n", nrows, ncols, nrows)
-
-	if ncols != nrows {
-		return nil, fmt.Errorf("M must be a square matrix but was %dx%d", nrows, ncols)
+	if len(M) / n != n {
+		panic(fmt.Sprintf("M must be a square matrix but was %dx%d", len(M) / n, n))
 	}
 
-	lcp := &LCP{m: M, q: q, n: len(q)}
-	lcp.initVars()
+	fmt.Printf("Creating LCP of dimenstion n=%d\n", n)
+
+	lcp := &LCP{m: M, q: q, n: n}
+	lcp.vars = newTableauVariables(n)
 	lcp.initTableau()
 
-	return lcp, nil
+	return lcp
 }
 
 func (lcp *LCP) M(i int, j int) *big.Rat {
@@ -73,27 +63,6 @@ func (lcp *LCP) M(i int, j int) *big.Rat {
 
 func (lcp *LCP) Q(i int) *big.Rat {
 	return lcp.q[i]
-}
-
-/*
- * init tableau variables:
- * Z(0)...Z(n)  nonbasic,  W(1)...W(n) basic
- * This is for setting up a complementary basis/cobasis
- */
-func (lcp *LCP) initVars() {
-
-	lcp.vars2rowcol = make([]int, 2*lcp.n+1)
-	lcp.rowcol2vars = make([]bascobas, 2*lcp.n+1)
-
-	for i := 0; i <= lcp.n; i++ {
-		lcp.vars2rowcol[i] = lcp.n + i
-		lcp.rowcol2vars[lcp.n+i] = bascobas(i)
-	}
-
-	for i := 1; i <= lcp.n; i++ {
-		lcp.vars2rowcol[i+lcp.n] = i - 1
-		lcp.rowcol2vars[i-1] = bascobas(i + lcp.n)
-	}
 }
 
 func (lcp *LCP) initTableau() {
@@ -189,20 +158,6 @@ func checkInputs(q []*big.Rat, d []*big.Rat) error {
 	return nil
 }
 
-func (lcp *LCP) swap(enter bascobas, leave bascobas) (int, int) {
-
-	leaveRow := lcp.var2row(leave) // basic var is leaving
-	enterCol := lcp.var2col(enter) // cobasic var is entering
-
-	lcp.vars2rowcol[leave] = enterCol + lcp.n
-	lcp.rowcol2vars[enterCol+lcp.n] = leave
-
-	lcp.vars2rowcol[enter] = leaveRow
-	lcp.rowcol2vars[leaveRow] = enter
-
-	return leaveRow, enterCol
-}
-
 /*
  * Pivot tableau on the element  A[row][col] which must be nonzero
  * afterwards tableau normalized with positive determinant
@@ -210,19 +165,19 @@ func (lcp *LCP) swap(enter bascobas, leave bascobas) (int, int) {
  * @param leave (r) VAR defining row of pivot element
  * @param enter (s) VAR defining col of pivot element
  */
-func (lcp *LCP) pivot(leave bascobas, enter bascobas) error {
+func (lcp *LCP) pivot(leave *tableauVariable, enter *tableauVariable) {
 
-	if !lcp.isBasicVar(leave) {
-		return fmt.Errorf("%v is not in the basis", lcp.var2str(leave))
+	if !leave.isBasic() {
+		panic(fmt.Sprintf("%v is not in the basis", leave))
 	}
 
-	if lcp.isBasicVar(enter) {
-		return fmt.Errorf("%v is already in the basis", lcp.var2str(leave))
+	if enter.isBasic() {
+		panic(fmt.Sprintf("%v is already in the basis", enter))
 	}
 
-	row, col := lcp.swap(enter, leave) /* update tableau variables                                  */
-	log.Println("pivoting (", row, ",", col, ")")
-	return lcp.a.pivotOnRowCol(row, col)
+	row, col := lcp.vars.swap(enter, leave) /* update tableau variables                                  */
+	fmt.Println("pivoting (", row, ",", col, ")")
+	lcp.a.pivotOnRowCol(row, col)
 }
 
 /*
@@ -234,7 +189,7 @@ func (lcp *LCP) solution() []*big.Rat {
 
 	z := make([]*big.Rat, lcp.n)
 	for i := 1; i <= lcp.n; i++ {
-		z[i-1] = lcp.result(lcp.z(i))
+		z[i-1] = lcp.result(lcp.vars.z(i))
 	}
 	return z
 }
@@ -243,81 +198,26 @@ func (lcp *LCP) solution() []*big.Rat {
  * Z(i):  scfa[i]*rhs[row] / (scfa[RHS]*det)
  * W(i):  rhs[row] / (scfa[RHS]*det)
  */
-func (lcp *LCP) result(varIdx bascobas) *big.Rat {
+func (lcp *LCP) result(tvar *tableauVariable) *big.Rat {
 
 	rv := big.NewRat(0, 1)
-	if lcp.isBasicVar(varIdx) {
+	if tvar.isBasic() {
 
 		var scaleFactor *big.Int
-		if lcp.isZVar(varIdx) {
-			scaleFactor = lcp.scfa[int(varIdx)]
+		if tvar.isZ() {
+			scaleFactor = lcp.scfa[tvar.idx]  // TODO: row?
 		} else {
 			scaleFactor = big.NewInt(1)
 		}
 
-		row := lcp.var2row(varIdx)
-		num := new(big.Int).Mul(scaleFactor, lcp.rhs(row))
-		den := new(big.Int).Mul(lcp.a.det, lcp.scfa[lcp.n+1])
+		row := tvar.toRow()
+		num := new(big.Int).Mul(scaleFactor, lcp.rhs(row))  // TODO: any BigInt here that I can overwrite at this point?
+		den := new(big.Int).Mul(lcp.a.det, lcp.scfa[lcp.n+1]) // TODO: is this denom constant for the whole solution...
 
 		rv.SetFrac(num, den)
 	}
 
 	return rv
-}
-
-func (lcp *LCP) z(idx int) bascobas {
-	return bascobas(idx)
-}
-
-func (lcp *LCP) w(idx int) bascobas {
-	return bascobas(idx + lcp.n)
-}
-
-func (lcp *LCP) row2var(row int) bascobas {
-	return lcp.rowcol2vars[row]
-}
-
-func (lcp *LCP) col2var(col int) bascobas {
-	return lcp.rowcol2vars[col+lcp.n]
-}
-
-func (lcp *LCP) var2row(varIdx bascobas) int {
-	return lcp.vars2rowcol[varIdx]
-}
-
-func (lcp *LCP) var2col(varIdx bascobas) int {
-	return lcp.vars2rowcol[varIdx] - lcp.n
-}
-
-func (lcp *LCP) var2str(varIdx bascobas) string {
-	if lcp.isZVar(varIdx) {
-		return fmt.Sprintf("z%d", varIdx)
-	}
-	return fmt.Sprintf("w%d", int(varIdx)-lcp.n)
-}
-
-func (lcp *LCP) isBasicVar(varIdx bascobas) bool {
-	return (lcp.vars2rowcol[varIdx] < lcp.n)
-}
-
-func (lcp *LCP) isZVar(varIdx bascobas) bool {
-	return (int(varIdx) <= lcp.n)
-}
-
-/*
- * complement of  v  in VARS, error if  v==Z(0).
- * this is  W(i) for Z(i)  and vice versa, i=1...n
- */
-func (lcp *LCP) complement(varIdx bascobas) (bascobas, error) {
-
-	if varIdx == lcp.z(0) {
-		return varIdx, errors.New("Attempt to find complement of z0.")
-	}
-
-	if lcp.isZVar(varIdx) {
-		return bascobas(int(varIdx) + lcp.n), nil
-	}
-	return bascobas(int(varIdx) - lcp.n), nil
 }
 
 func (lcp *LCP) negateRHS() {
@@ -336,13 +236,13 @@ func (lcp *LCP) String() string {
 		if j == lcp.a.ncols-1 {
 			matrixPrinter.Colpr("rhs")
 		} else {
-			matrixPrinter.Colpr(lcp.var2str(lcp.col2var(j)))
+			matrixPrinter.Colpr(lcp.vars.fromCol(j).String())
 		}
 	}
 	matrixPrinter.Colnl()
 
 	for i := 0; i < lcp.a.nrows; i++ {
-		matrixPrinter.Colpr(lcp.var2str(lcp.row2var(i)))
+		matrixPrinter.Colpr(lcp.vars.fromRow(i).String())
 		for j := 0; j < lcp.a.ncols; j++ {
 			matrixPrinter.Colpr(lcp.a.entry(i, j).String())
 		}

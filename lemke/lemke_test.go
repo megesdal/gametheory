@@ -13,8 +13,7 @@ func TestLemkeRun2(t *testing.T) {
 	q := ints2rats([]int{-1, -1})
 	d := ints2rats([]int{2, 1})
 
-	lcp, err := NewLCP(M, q)
-	assert.Nil(t, err)
+	lcp := NewLCP(M, q)
 
 	z, err := lcp.Lemke(d)
 	assert.Nil(t, err)
@@ -34,8 +33,7 @@ func TestLemkeRun3(t *testing.T) {
 	q := ints2rats([]int{-3, 6, -1})
 	d := ints2rats([]int{1, 1, 1})
 
-	lcp, err := NewLCP(M, q)
-	assert.Nil(t, err)
+	lcp := NewLCP(M, q)
 
 	z, err := lcp.Lemke(d)
 	assert.Nil(t, err)
