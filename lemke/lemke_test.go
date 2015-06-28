@@ -15,7 +15,7 @@ func TestLemkeRun2(t *testing.T) {
 
 	lcp := NewLCP(M, q)
 
-	z, err := lcp.Lemke(d)
+	z, err := Solve(lcp, d)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, len(z))
@@ -35,7 +35,7 @@ func TestLemkeRun3(t *testing.T) {
 
 	lcp := NewLCP(M, q)
 
-	z, err := lcp.Lemke(d)
+	z, err := Solve(lcp, d)
 	assert.Nil(t, err)
 
 	//StringWriter output = new StringWriter();

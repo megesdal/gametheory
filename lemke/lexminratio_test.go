@@ -40,7 +40,7 @@ func TestLexMinVar(t *testing.T) {
 	assert.Equal(t, false, z0leave, "z0 is not leaving")
 	assert.Nil(t, err, "No ray termination")
 
-  // TODO: expect panic...
+	// TODO: expect panic...
 	/*_, _, err = lexminratio(a, vars, vars.w(1))
 	assert.NotNil(t, err, "Should be an error")
 	assert.Equal(t, "Variable w1 is already in basis. Must be cobasic to enter.", err.Error())
@@ -48,7 +48,7 @@ func TestLexMinVar(t *testing.T) {
 	_, _, err = lexminratio(a, vars, vars.w(2))
 	assert.NotNil(t, err, "Should be an error")
 	assert.Equal(t, "Variable w2 is already in basis. Must be cobasic to enter.", err.Error())
-  */
+	*/
 }
 
 // TODO: make this a benchmark test...

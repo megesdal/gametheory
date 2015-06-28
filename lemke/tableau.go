@@ -3,8 +3,8 @@ package lemke
 import (
 	"bytes"
 	"fmt"
-	"math/big"
 	"github.com/megesdal/gametheory/util"
+	"math/big"
 )
 
 type tableau struct {

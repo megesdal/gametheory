@@ -157,7 +157,7 @@ func LemkeEquilibriumWithPriors(payoffs []*big.Rat, rowPriors []*big.Rat, colPri
 	d := generateCovVector(lcp, rowPriors, colPriors)
 
 	// 3. Pass the combination of the two to the Lemke algorithm
-	z, err := lcp.Lemke(d)
+	z, err := lemke.Solve(lcp, d)
 	if err != nil {
 		return nil, err
 	}

@@ -59,7 +59,7 @@ func processCandidates(tableau *tableau, enterCol int, leaveCandidateRows []int)
 	z0leave := checkForZ0(tableau.vars, leaveCandidateRows)
 	/* alternative, to force z0 leaving the basis:
 	* return whichvar[leavecand[i]];
-	*/
+	 */
 
 	for j := 1; len(leaveCandidateRows) > 1; j++ {
 		//if j >= A.RHS() {                                             /* impossible, perturbed RHS should have full rank */
@@ -72,8 +72,8 @@ func processCandidates(tableau *tableau, enterCol int, leaveCandidateRows []int)
 			fmt.Printf("%s is basic... removing from candidate\n", wj)
 			leaveCandidateRows = remove(leaveCandidateRows, wj.row())
 		} else { // not a basic testcolumn: perform minimum ratio tests
-			testCol := wj.col() /* since testcol is the  jth  unit column                    */
-			if testCol != enterCol {   /* otherwise nothing will change */
+			testCol := wj.col()      /* since testcol is the  jth  unit column                    */
+			if testCol != enterCol { /* otherwise nothing will change */
 				leaveCandidateRows = minRatioTest(tableau, enterCol, testCol, leaveCandidateRows)
 			}
 		}

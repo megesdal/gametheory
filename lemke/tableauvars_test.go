@@ -1,8 +1,8 @@
 package lemke
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestVariableAssignments(t *testing.T) {
