@@ -12,7 +12,7 @@ import (
 func TestLexMinVar(t *testing.T) {
 
 	n := 2
-	a := newTableau(n, n+2)
+	a := newTableau(n)
 
 	a.set(0, 0, big.NewInt(2))
 	a.set(0, 1, big.NewInt(2))
@@ -25,17 +25,17 @@ func TestLexMinVar(t *testing.T) {
 
 	vars := newTableauVariables(n)
 	// TODO: if I give lexmin a bascobas lookup function instead of full lcp, that should suffice
-	leave, z0leave, err := lexminratio(a, vars, vars.z(0))
+	leave, z0leave, err := lexminratio(a, a.vars.z(0))
 	assert.Equal(t, vars.w(2), leave, "w2 = 4 is leaving")
 	assert.Equal(t, false, z0leave, "z0 is not leaving")
 	assert.Nil(t, err, "No ray termination")
 
-	leave, z0leave, err = lexminratio(a, vars, vars.z(1))
+	leave, z0leave, err = lexminratio(a, a.vars.z(1))
 	assert.Equal(t, vars.w(2), leave, "w2 = 4 is leaving")
 	assert.Equal(t, false, z0leave, "z0 is not leaving")
 	assert.Nil(t, err, "No ray termination")
 
-	leave, z0leave, err = lexminratio(a, vars, vars.z(2))
+	leave, z0leave, err = lexminratio(a, a.vars.z(2))
 	assert.Equal(t, vars.w(1), leave, "w1 = 3 is leaving")
 	assert.Equal(t, false, z0leave, "z0 is not leaving")
 	assert.Nil(t, err, "No ray termination")
@@ -55,7 +55,7 @@ func TestLexMinVar(t *testing.T) {
 func Test1000LexMinVarOnLargeTableu(t *testing.T) {
 
 	n := 1000
-	a := newTableau(n, n+2)
+	a := newTableau(n)
 
 	for i := 0; i < a.nrows; i++ {
 		for j := 0; j < a.ncols; j++ {
@@ -67,11 +67,9 @@ func Test1000LexMinVarOnLargeTableu(t *testing.T) {
 		}
 	}
 
-  vars := newTableauVariables(n)
-
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		leave, z0leave, err := lexminratio(a, vars, vars.z(0))
+		leave, z0leave, err := lexminratio(a, a.vars.z(0))
 		assert.Equal(t, 1001, leave.idx)
 		assert.Equal(t, false, z0leave)
 		assert.Nil(t, err)
@@ -88,7 +86,7 @@ func Test1000LexMinVarOnLargeTableu(t *testing.T) {
  */
 func TestMinRatioTest(t *testing.T) {
 
-	A := newTableau(2, 4)
+	A := newTableau(2)
 	A.set(0, 0, big.NewInt(int64(2)))
 	A.set(0, 1, big.NewInt(int64(2)))
 	A.set(0, 2, big.NewInt(int64(1)))

@@ -1,21 +1,26 @@
 package lemke
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
+	"github.com/megesdal/gametheory/util"
 )
 
 type tableau struct {
 	matrix []*big.Int
 	ncols  int
 	nrows  int
+	vars   *tableauVariables
 	det    *big.Int // determinant
 }
 
-func newTableau(nrows int, ncols int) *tableau {
+func newTableau(n int) *tableau {
 	tableau := &tableau{}
-	tableau.nrows = nrows
-	tableau.ncols = ncols
-	tableau.matrix = make([]*big.Int, nrows*ncols)
+	tableau.nrows = n
+	tableau.ncols = n + 2
+	tableau.vars = newTableauVariables(n)
+	tableau.matrix = make([]*big.Int, tableau.nrows*tableau.ncols)
 
 	tableau.det = big.NewInt(-1) // TODO: how do I know this? Specific to LCP?
 	return tableau
@@ -29,19 +34,29 @@ func (A *tableau) entry(row int, col int) *big.Int {
 	return A.matrix[row*A.ncols+col]
 }
 
-func isPositive(num *big.Int) bool {
-	return num.Sign() > 0
+/*
+ * Pivot tableau on the element  A[row][col] which must be nonzero
+ * afterwards tableau normalized with positive determinant
+ * and updated tableau variables
+ * @param leave (r) VAR defining row of pivot element
+ * @param enter (s) VAR defining col of pivot element
+ */
+func (A *tableau) pivot(leave *tableauVariable, enter *tableauVariable) {
+
+	if !leave.isBasic() {
+		panic(fmt.Sprintf("%v is not in the basis", leave))
+	}
+
+	if enter.isBasic() {
+		panic(fmt.Sprintf("%v is already in the basis", enter))
+	}
+
+	row, col := A.vars.swap(enter, leave) /* update tableau variables                                  */
+	fmt.Println("pivoting (", row, ",", col, ")")
+	A.pivotMatrix(row, col)
 }
 
-func isNegative(num *big.Int) bool {
-	return num.Sign() < 0
-}
-
-func isZero(num *big.Int) bool {
-	return num.Sign() == 0
-}
-
-func (A *tableau) pivotOnRowCol(row int, col int) {
+func (A *tableau) pivotMatrix(row int, col int) {
 
 	pivelt := A.entry(row, col) /* pivelt anyhow later new determinant  */
 
@@ -117,4 +132,38 @@ func (A *tableau) negateCol(col int) {
 			entry.Neg(entry)
 		}
 	}
+}
+
+func (A *tableau) rhsCol() int {
+	return A.ncols - 1
+}
+
+func (A *tableau) rhsEntry(row int) *big.Int {
+	return A.entry(row, A.rhsCol())
+}
+
+func (A *tableau) String() string {
+
+	matrixPrinter := util.NewMatrixPrinter()
+	matrixPrinter.Colpr("")
+	for j := 0; j < A.ncols; j++ {
+		if j == A.ncols-1 {
+			matrixPrinter.Colpr("rhs")
+		} else {
+			matrixPrinter.Colpr(A.vars.fromCol(j).String())
+		}
+	}
+	matrixPrinter.Colnl()
+
+	for i := 0; i < A.nrows; i++ {
+		matrixPrinter.Colpr(A.vars.fromRow(i).String())
+		for j := 0; j < A.ncols; j++ {
+			matrixPrinter.Colpr(A.entry(i, j).String())
+		}
+		matrixPrinter.Colnl()
+	}
+
+	var buffer bytes.Buffer
+	matrixPrinter.Colout(&buffer)
+	return buffer.String()
 }

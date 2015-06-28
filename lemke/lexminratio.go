@@ -12,21 +12,21 @@ import "fmt"
  * basis, but the lex-minratio test is performed fully,
  * so the returned value might not be the index of  z0
  */
-func lexminratio(tableau *tableau, vars *tableauVariables, enter *tableauVariable) (*tableauVariable, bool, error) {
+func lexminratio(tableau *tableau, enter *tableauVariable) (*tableauVariable, bool, error) {
 
 	var err error
 	z0leave := false
-	leaveCandidateRows := make([]int, 0, vars.n)
+	leaveCandidateRows := make([]int, 0, tableau.vars.n)
 
 	if enter.isBasic() {
 		panic(fmt.Sprintf("Variable %v is already in basis. Must be cobasic to enter.", enter))
 	}
 
-	enterCol := enter.toCol()
+	enterCol := enter.col()
 
 	// start with  leavecand = { i | A[i][col] > 0 }
-	for i := 0; i < vars.n; i++ {
-		if isPositive(tableau.entry(i, enterCol)) {
+	for i := 0; i < tableau.vars.n; i++ {
+		if tableau.entry(i, enterCol).Sign() > 0 {
 			leaveCandidateRows = append(leaveCandidateRows, i)
 		}
 	}
@@ -40,9 +40,9 @@ func lexminratio(tableau *tableau, vars *tableauVariables, enter *tableauVariabl
 		z0leave = IsLeavingRowZ0(leavecand[0]);
 	}*/
 
-	leaveCandidateRows, z0leave = processCandidates(tableau, vars, enterCol, leaveCandidateRows)
+	leaveCandidateRows, z0leave = processCandidates(tableau, enterCol, leaveCandidateRows)
 
-	return vars.fromRow(leaveCandidateRows[0]), z0leave, err
+	return tableau.vars.fromRow(leaveCandidateRows[0]), z0leave, err
 }
 
 /*
@@ -53,10 +53,10 @@ func lexminratio(tableau *tableau, vars *tableauVariables, enter *tableauVariabl
  * in the tableau.  That test has an easy known result if
  * the test column is basic or equal to the entering variable.
  */
-func processCandidates(tableau *tableau, vars *tableauVariables, enterCol int, leaveCandidateRows []int) ([]int, bool) {
+func processCandidates(tableau *tableau, enterCol int, leaveCandidateRows []int) ([]int, bool) {
 
 	leaveCandidateRows = minRatioTest(tableau, enterCol, tableau.ncols-1, leaveCandidateRows)
-	z0leave := checkForZ0(vars, leaveCandidateRows)
+	z0leave := checkForZ0(tableau.vars, leaveCandidateRows)
 	/* alternative, to force z0 leaving the basis:
 	* return whichvar[leavecand[i]];
 	*/
@@ -66,13 +66,13 @@ func processCandidates(tableau *tableau, vars *tableauVariables, enterCol int, l
 		//    throw new RuntimeException("lex-minratio test failed"); //TODO
 		//}
 
-		wj := vars.w(j)
+		wj := tableau.vars.w(j)
 		fmt.Printf("Checking leave candidate %s\n", wj)
 		if wj.isBasic() { /* testcol < 0: W(j) basic, Eliminate its row from leavecand */
 			fmt.Printf("%s is basic... removing from candidate\n", wj)
-			leaveCandidateRows = remove(leaveCandidateRows, wj.toRow())
+			leaveCandidateRows = remove(leaveCandidateRows, wj.row())
 		} else { // not a basic testcolumn: perform minimum ratio tests
-			testCol := wj.toCol() /* since testcol is the  jth  unit column                    */
+			testCol := wj.col() /* since testcol is the  jth  unit column                    */
 			if testCol != enterCol {   /* otherwise nothing will change */
 				leaveCandidateRows = minRatioTest(tableau, enterCol, testCol, leaveCandidateRows)
 			}

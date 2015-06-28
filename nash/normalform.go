@@ -153,10 +153,7 @@ func LemkeEquilibriumWithPriors(payoffs []*big.Rat, rowPriors []*big.Rat, colPri
 	}
 
 	// 2. Generate the LCP from the two payoff matrices and the priors
-	lcp, err := generateLCP(nrows, ncols, fnAdjustedPayoff)
-	if err != nil {
-		return nil, err
-	}
+	lcp := generateLCP(nrows, ncols, fnAdjustedPayoff)
 	d := generateCovVector(lcp, rowPriors, colPriors)
 
 	// 3. Pass the combination of the two to the Lemke algorithm
@@ -219,7 +216,7 @@ func applyPayCorrect(payoffs []*big.Rat, corrections [2]*big.Rat) []*big.Rat {
 }
 
 // this assumes pays have been normalized to -1 as the max value
-func generateLCP(nrows int, ncols int, fnPayoff func(int, int, int) *big.Rat) (*lemke.LCP, error) {
+func generateLCP(nrows int, ncols int, fnPayoff func(int, int, int) *big.Rat) *lemke.LCP {
 
 	size := nrows + ncols + 2
 
@@ -303,7 +300,6 @@ func generateCovVector(lcp *lemke.LCP, rowPriors []*big.Rat, colPriors []*big.Ra
 	for i := 0; i < len(rowPriors); i++ {
 		for j := 0; j < len(colPriors); j++ {
 			d[i].Add(d[i], new(big.Rat).Mul(lcp.M(i, offset+j), colPriors[j]))
-			//lcp.setd(i, lcp.d(i).add(lcp.M(i, offset+j).multiply(colPriors[j])))
 		}
 	}
 

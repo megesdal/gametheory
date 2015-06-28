@@ -7,11 +7,11 @@ type tableauVariable struct {
   s *tableauVariables
 }
 
-func (tvar *tableauVariable) toRow() int {
+func (tvar *tableauVariable) row() int {
 	return tvar.s.toRowCol[tvar.idx]
 }
 
-func (tvar *tableauVariable) toCol() int {
+func (tvar *tableauVariable) col() int {
 	return tvar.s.toRowCol[tvar.idx] - tvar.s.n
 }
 
@@ -92,12 +92,12 @@ func newTableauVariables(n int) *tableauVariables {
   return &vars
 }
 
-func (vars *tableauVariables) z(idx int) *tableauVariable {
-	return &vars.lookup[idx]
+func (vars *tableauVariables) z(subscript int) *tableauVariable {
+	return &vars.lookup[subscript]
 }
 
-func (vars *tableauVariables) w(idx int) *tableauVariable {
-  return &vars.lookup[idx + vars.n]
+func (vars *tableauVariables) w(subscript int) *tableauVariable {
+  return &vars.lookup[subscript + vars.n]
 }
 
 func (vars *tableauVariables) fromRow(row int) *tableauVariable {
@@ -110,8 +110,8 @@ func (vars *tableauVariables) fromCol(col int) *tableauVariable {
 
 func (vars *tableauVariables) swap(enter *tableauVariable, leave *tableauVariable) (int, int) {
 
-	leaveRow := leave.toRow() // basic var is leaving
-	enterCol := enter.toCol() // cobasic var is entering
+	leaveRow := leave.row() // basic var is leaving
+	enterCol := enter.col() // cobasic var is entering
 
 	vars.toRowCol[leave.idx] = enterCol + vars.n
 	vars.fromRowCol[enterCol+vars.n] = leave.idx

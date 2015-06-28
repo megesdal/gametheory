@@ -10,7 +10,7 @@ import (
 func TestAssignment(t *testing.T) {
 
 	n := 2
-	A := newTableau(n, n+2)
+	A := newTableau(n)
 
 	A.set(0, 0, big.NewInt(2))
 	A.set(0, 1, big.NewInt(2))
@@ -34,7 +34,7 @@ func TestAssignment(t *testing.T) {
 func TestPosPivot(t *testing.T) {
 
 	n := 2
-	A := newTableau(n, n+2)
+	A := newTableau(n)
 	for i := 0; i < A.nrows; i++ {
 		for j := 0; j < A.ncols; j++ {
 			value := big.NewInt(int64((i + 1) + j*10))
@@ -47,7 +47,7 @@ func TestPosPivot(t *testing.T) {
 	assert.Equal(t, int64(2), A.entry(1, 0).Int64())
 	assert.Equal(t, int64(12), A.entry(1, 1).Int64())
 
-	A.pivotOnRowCol(0, 0)
+	A.pivotMatrix(0, 0)
 
 	assert.Equal(t, int64(-1), A.entry(0, 0).Int64())
 	assert.Equal(t, int64(11), A.entry(0, 1).Int64())
@@ -58,7 +58,7 @@ func TestPosPivot(t *testing.T) {
 func TestNegCol(t *testing.T) {
 
 	n := 3
-	A := newTableau(n, n+2)
+	A := newTableau(n)
 	for i := 0; i < A.nrows; i++ {
 		for j := 0; j < A.ncols; j++ {
 			value := big.NewInt(int64(i + j*10))
@@ -77,7 +77,7 @@ func TestNegCol(t *testing.T) {
 func TestPositiveValuesRatioTest(t *testing.T) {
 
 	n := 2
-	A := newTableau(n, n+2)
+	A := newTableau(n)
 	for i := 0; i < A.nrows; i++ {
 		for j := 0; j < A.ncols; j++ {
 			value := big.NewInt(int64((i + 1) + j*10))

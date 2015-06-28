@@ -12,7 +12,7 @@ func TestVariableAssignments(t *testing.T) {
 	for i := 0; i <= vars.n; i++ {
 		zi := vars.z(i)
 		assert.Equal(t, i, zi.idx, "z(i) should equal i")
-		assert.Equal(t, i, zi.toCol(), "col(z(i)) should equal i")
+		assert.Equal(t, i, zi.col(), "col(z(i)) should equal i")
 		assert.Equal(t, zi.idx, vars.fromCol(i).idx, "var(col(z(i))) = var(i) should equal z(i)")
 		assert.Equal(t, false, zi.isBasic(), "z(i) should NOT be basic")
 	}
@@ -20,7 +20,7 @@ func TestVariableAssignments(t *testing.T) {
 	for i := 1; i <= vars.n; i++ {
 		wi := vars.w(i)
 		assert.Equal(t, i+vars.n, wi.idx, "w(i) should equal i + n")
-		assert.Equal(t, i-1, wi.toRow(), "row(w(i)) should equal i - 1 (w is 1-indexed)")
+		assert.Equal(t, i-1, wi.row(), "row(w(i)) should equal i - 1 (w is 1-indexed)")
 		assert.Equal(t, wi.idx, vars.fromRow(i-1).idx, "var(row(w(i - 1))) = var(i - 1) should equal w(i)")
 		assert.Equal(t, true, wi.isBasic(), "w(i) should be basic")
 	}
@@ -32,11 +32,11 @@ func TestSwap(t *testing.T) {
 
 	leaveVar := vars.w(1) // first row, w(1) = 4
 	assert.Equal(t, true, leaveVar.isBasic(), "leaving var should be basic")
-	assert.Equal(t, 0, leaveVar.toRow(), "w(1) points to row 0")
+	assert.Equal(t, 0, leaveVar.row(), "w(1) points to row 0")
 
 	enterVar := vars.z(0) // first col, z(0) = 0
 	assert.Equal(t, false, enterVar.isBasic(), "entering var should be cobasic")
-	assert.Equal(t, 0, enterVar.toCol(), "z(0) points to col 0")
+	assert.Equal(t, 0, enterVar.col(), "z(0) points to col 0")
 
 	row, col := vars.swap(enterVar, leaveVar)
 
