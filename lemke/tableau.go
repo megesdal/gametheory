@@ -3,7 +3,7 @@ package lemke
 import (
 	"bytes"
 	"fmt"
-	"github.com/megesdal/gametheory/util"
+	"github.com/megesdal/matrixprinter"
 	"math/big"
 )
 
@@ -144,26 +144,26 @@ func (A *tableau) rhsEntry(row int) *big.Int {
 
 func (A *tableau) String() string {
 
-	matrixPrinter := util.NewMatrixPrinter()
-	matrixPrinter.Colpr("")
+	matrixPrinter := matrixprinter.New()
+	matrixPrinter.Append("")
 	for j := 0; j < A.ncols; j++ {
 		if j == A.ncols-1 {
-			matrixPrinter.Colpr("rhs")
+			matrixPrinter.Append("rhs")
 		} else {
-			matrixPrinter.Colpr(A.vars.fromCol(j).String())
+			matrixPrinter.Append(A.vars.fromCol(j).String())
 		}
 	}
-	matrixPrinter.Colnl()
+	matrixPrinter.EndRow()
 
 	for i := 0; i < A.nrows; i++ {
-		matrixPrinter.Colpr(A.vars.fromRow(i).String())
+		matrixPrinter.Append(A.vars.fromRow(i).String())
 		for j := 0; j < A.ncols; j++ {
-			matrixPrinter.Colpr(A.entry(i, j).String())
+			matrixPrinter.Append(A.entry(i, j).String())
 		}
-		matrixPrinter.Colnl()
+		matrixPrinter.EndRow()
 	}
 
 	var buffer bytes.Buffer
-	matrixPrinter.Colout(&buffer)
+	matrixPrinter.Print(&buffer)
 	return buffer.String()
 }
