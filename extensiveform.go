@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 )
 
 type Move struct {
@@ -169,7 +170,7 @@ func (tree *ExtensiveForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactor
 }
 
 func (tree *ExtensiveForm) followMove(depth int, prob *big.Rat, mf *MoveFactory) {
-	fmt.Println(depth, prob, "move", mf.Name, mf.Prob)
+	fmt.Println(depth, prob, "move", mf.String())
 
 	var nextProb *big.Rat
 	if mf.Prob != 0 {
@@ -182,11 +183,11 @@ func (tree *ExtensiveForm) followMove(depth int, prob *big.Rat, mf *MoveFactory)
 	if mf.Next != nil {
 		tree.recVisitNode(depth+1, nextProb, mf.Next)
 	} else if mf.Outcome != nil {
-		leafStr := "$["
-		for _, plPayoff := range mf.Outcome {
-			leafStr += plPayoff.String() + ","
+		outcomeStrs := make([]string, len(mf.Outcome))
+		for i, plPayoff := range mf.Outcome {
+			outcomeStrs[i] = plPayoff.String()
 		}
-		leafStr += "]"
+		leafStr := "$[" + strings.Join(outcomeStrs, ",") + "]"
 		fmt.Println("leaf!", leafStr)
 	}
 }
@@ -223,11 +224,12 @@ func (m *MoveFactory) String() string {
 	if m.Next != nil {
 		rv += "->" + m.Next.String()
 	} else if m.Outcome != nil {
-		rv += "->$["
-		for _, plPayoff := range m.Outcome {
-			rv += plPayoff.String() + ","
+		outcomeStrs := make([]string, len(m.Outcome))
+		for i, plPayoff := range m.Outcome {
+			outcomeStrs[i] = plPayoff.String()
 		}
-		rv += "]"
+		leafStr := "$[" + strings.Join(outcomeStrs, ",") + "]"
+		rv += leafStr
 	}
 	return rv
 }

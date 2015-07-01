@@ -144,26 +144,26 @@ func (A *tableau) rhsEntry(row int) *big.Int {
 
 func (A *tableau) String() string {
 
-	matrixPrinter := matrixprinter.New()
-	matrixPrinter.Append("")
+	table := matrixprinter.NewTable()
+	table.Append("")
 	for j := 0; j < A.ncols; j++ {
 		if j == A.ncols-1 {
-			matrixPrinter.Append("rhs")
+			table.Append("rhs")
 		} else {
-			matrixPrinter.Append(A.vars.fromCol(j).String())
+			table.Append(A.vars.fromCol(j).String())
 		}
 	}
-	matrixPrinter.EndRow()
+	table.EndRow()
 
 	for i := 0; i < A.nrows; i++ {
-		matrixPrinter.Append(A.vars.fromRow(i).String())
+		table.Append(A.vars.fromRow(i).String())
 		for j := 0; j < A.ncols; j++ {
-			matrixPrinter.Append(A.entry(i, j).String())
+			table.Append(A.entry(i, j).String())
 		}
-		matrixPrinter.EndRow()
+		table.EndRow()
 	}
 
 	var buffer bytes.Buffer
-	matrixPrinter.Print(&buffer)
+	table.Print(&buffer)
 	return buffer.String()
 }
