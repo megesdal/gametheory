@@ -12,10 +12,7 @@ type SequenceForm struct {
 	seed int64
 
 	plPayoffs     map[string]map[string]map[string]*big.Rat // pl -> own move -> (other moves tuple) -> payoff
-	plConstraints map[string]map[string]int      // pl -> own iset -> own move -> 1 if move in iset, -1 if move into iset, 0 otherwise
-
-	//isetSeqIn     map[*InformationSet]*Move
-	//nodeDefSeq    map[*Node][3]Move
+	plConstraints map[string]map[string]map[string]int      // pl -> own iset -> own move -> 1 if move in iset, -1 if move into iset, 0 otherwise
 
 	// used to build constraints...
 	// TODO: needed?
@@ -36,7 +33,7 @@ func NewSequenceForm(nf *NodeFactory) *SequenceForm {
 	//sf.isetIndex = make(map[string]int)
 	sf.plIsets = make(map[string][]string)
 	sf.plPayoffs = make(map[string]map[string]map[string]*big.Rat)
-  sf.plConstraints = make(map[string]map[string]int)
+  sf.plConstraints = make(map[string]map[string]map[string]int)
   sf.plNames = make([]string, 0)
   sf.plSeqs = make(map[string][]string)
   fmt.Println("=====START seqform====")
@@ -103,20 +100,26 @@ func (sf *SequenceForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactory, 
     }
 
 		// iset -> move -> 1
-    _, exists := sf.plConstraints[nf.Iset]
+    _, exists := sf.plConstraints[nf.Player]
     if !exists {
-      sf.plConstraints[nf.Iset] = make(map[string]int)
+      sf.plConstraints[nf.Player] = make(map[string]map[string]int)
     }
-		sf.plConstraints[nf.Iset][move.Name] = 1
+    _, exists = sf.plConstraints[nf.Player][nf.Iset]
+    if !exists {
+      sf.plConstraints[nf.Player][nf.Iset] = make(map[string]int)
+    }
+		sf.plConstraints[nf.Player][nf.Iset][move.Name] = 1
 		sequences[nf.Player] = move
-		fmt.Println("seq", nf.Player, move.String())
+		fmt.Println("seq", nf.Player, nf.Iset, move.Name)
 		sf.followMove(depth, prob, move, sequences)
 	}
 
+  lastMoveName := "\u2205"
 	if lastMove != nil {
-    sf.plConstraints[nf.Iset][lastMove.Name] = -1
-		fmt.Println("seq revert", nf.Player, lastMove.String())
-	}
+    lastMoveName = lastMove.Name
+  }
+  sf.plConstraints[nf.Player][nf.Iset][lastMoveName] = -1
+	fmt.Println("seq revert", nf.Player, nf.Iset, lastMoveName)
 
 	sequences[nf.Player] = lastMove
 }
@@ -180,18 +183,29 @@ func (sf *SequenceForm) String() string {
   	for _, seq := range sf.plSeqs[pl] {
       table.Append(seq)
   	}
-    table.Append("\u2205")
+    /*table.Append("\u2205")
     for _, iset := range sf.plIsets[pl] {
       table.Append(iset)
-  	}
+  	}*/
   	table.EndRow()
 
     sf.recAppendRow(table, pl, 0, make(map[string]string))
-    // first col is for each other player recursively until all players consumed
-    // when we hit base case start the column...
-    // for every current player seq, get the payoff
 
     // then constraint rows... those are easy
+    for _, iset := range sf.plIsets[pl] {
+      // TODO: empty iset?
+      table.Append(iset)
+      for _, seq := range sf.plSeqs[pl] {
+        td := sf.plConstraints[pl][iset][seq]
+        if (td == 0) {
+          table.Append(".")
+        } else {
+          table.AppendInt(td)
+        }
+    	}
+      table.EndRow()
+    }
+    table.EndRow()
   }
 
 	/*for i := 0; i < A.nrows; i++ {
