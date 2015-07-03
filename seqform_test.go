@@ -127,7 +127,6 @@ func TestSequenceFormString(t *testing.T) {
 	if (err != nil) {
 	  t.Error(err)
 	}
-	fmt.Println(rootFactory.String())
 
   sf := NewSequenceForm(&rootFactory)
   fmt.Println(sf.String())

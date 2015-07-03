@@ -10,7 +10,7 @@ func TestUnmarshal(t *testing.T) {
 	fmt.Println("Start TestUnmarshal")
 	gameJSON := []byte(`{
     "player": "A",
-    "iset": "A",
+    "iset": "A1",
     "moves": [{
       "name": "L",
       "next": {
@@ -135,4 +135,5 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	fmt.Println(extensiveForm.String())
 }

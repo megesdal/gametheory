@@ -1,8 +1,10 @@
 package gametheory
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"strings"
 )
@@ -126,23 +128,16 @@ type InformationSet struct {
 type ExtensiveForm struct {
 	players []*Player
 	isets   []*InformationSet
-	root    *Node
-
-	moveIndex map[string]int
+	root    *NodeFactory
 }
 
-func (self *ExtensiveForm) UnmarshalJSON(bytes []byte) error {
+func (tree *ExtensiveForm) UnmarshalJSON(bytes []byte) error {
 	fmt.Println("Called UnmarshalJSON")
 	var rootFactory NodeFactory
 	err := json.Unmarshal(bytes, &rootFactory)
 	if err != nil {
 		return err
 	}
-	fmt.Println(rootFactory.String())
-
-	// TODO: playerIndex := make(map[string]int)
-	// TODO: isetIndex := make(map[string]int)
-	self.moveIndex = make(map[string]int)
 
 	// get all the players...
 	// recursivly visit the tree and construct the ex
@@ -152,44 +147,95 @@ func (self *ExtensiveForm) UnmarshalJSON(bytes []byte) error {
 	// with perfect recall we can take define this as the last move taken by each player
 	// so the input sequence is the (move_p1, move_p2, ...)
 	// the expectation of the payoffs are taken
-	seqform := NewSequenceForm(&rootFactory)
 
-	// TODO: delete this...
-	if seqform != nil {
-		return nil
-	}
-
+	tree.root = &rootFactory;
 	return nil
 }
 
-func (tree *ExtensiveForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactory) {
-	fmt.Println(depth, prob, "node", nf.Player, nf.Iset)
-	for _, move := range nf.Moves {
-		tree.followMove(depth, prob, move)
-	}
+func (tree *ExtensiveForm) String() string {
+	var buffer bytes.Buffer
+	recString(&buffer, 0, tree.root, make(map[int]bool))
+	return buffer.String()
 }
 
-func (tree *ExtensiveForm) followMove(depth int, prob *big.Rat, mf *MoveFactory) {
-	fmt.Println(depth, prob, "move", mf.String())
+// return num lines used
+func recString(w io.Writer, depth int, n *NodeFactory, openDepths map[int]bool) int {
 
-	var nextProb *big.Rat
-	if mf.Prob != 0 {
-		nextProb = new(big.Rat).SetFloat64(mf.Prob)
-		nextProb.Mul(nextProb, prob)
+	numLines := 1
+	if !n.Chance {
+		for i := 0; i < depth - 1; i++ {
+			if (openDepths[i]) {
+				io.WriteString(w, "| ")
+			} else {
+				io.WriteString(w, "  ")
+			}
+		}
+		if depth != 0 {
+			io.WriteString(w, "\\-")
+		}
+	  io.WriteString(w, n.Player)
+		io.WriteString(w, "::")
+		io.WriteString(w, n.Iset)
+	  io.WriteString(w, "\n")
+		depth++
 	} else {
-		nextProb = prob
+		numLines = 0
 	}
 
-	if mf.Next != nil {
-		tree.recVisitNode(depth+1, nextProb, mf.Next)
-	} else if mf.Outcome != nil {
-		outcomeStrs := make([]string, len(mf.Outcome))
-		for i, plPayoff := range mf.Outcome {
+	for i, move := range n.Moves {
+		if i != len(n.Moves) - 1 {
+			openDepths[depth - 1] = true
+		} else {
+			openDepths[depth - 1] = false
+		}
+		numLines += moveString(w, depth, move, openDepths)
+	}
+	return numLines
+}
+
+func moveString(w io.Writer, depth int, m *MoveFactory, openDepths map[int]bool) int {
+
+	for i := 0; i < depth - 1; i++ {
+		if (openDepths[i]) {
+			io.WriteString(w, "| ")
+		} else {
+			io.WriteString(w, "  ")
+		}
+	}
+
+	if !openDepths[depth - 1] {
+		io.WriteString(w, "\\-")
+	} else {
+		io.WriteString(w, "+-")
+	}
+	if m.Prob != 0 {
+		io.WriteString(w, fmt.Sprintf("?[%v]", m.Prob))
+	} else {
+		io.WriteString(w, m.Name)
+	}
+
+	numLines := 1
+	if m.Next != nil {
+		io.WriteString(w, "\n")
+		numLines += recString(w, depth + 1, m.Next, openDepths)
+	} else if m.Outcome != nil {
+		outcomeStrs := make([]string, len(m.Outcome))
+		for i, plPayoff := range m.Outcome {
 			outcomeStrs[i] = plPayoff.String()
 		}
-		leafStr := "$[" + strings.Join(outcomeStrs, ",") + "]"
-		fmt.Println("leaf!", leafStr)
+		leafStr := "{" + strings.Join(outcomeStrs, ",") + "}\n"
+		/*for i := 0; i < depth - 1; i++ {
+			io.WriteString(w, "  ")
+		}
+		if isLast {
+			io.WriteString(w, "  ")
+		} else {
+			io.WriteString(w, "| ")
+		}*/
+		io.WriteString(w, "->")
+		io.WriteString(w, leafStr)
 	}
+	return numLines
 }
 
 type NodeFactory struct {
@@ -240,5 +286,5 @@ type OutcomeFactory struct {
 }
 
 func (o *OutcomeFactory) String() string {
-	return fmt.Sprintf("%v=%v", o.Player, o.Payoff)
+	return fmt.Sprintf("%v:%v", o.Player, o.Payoff)
 }

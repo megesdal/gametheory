@@ -42,44 +42,14 @@ func NewSequenceForm(nf *NodeFactory) *SequenceForm {
 }
 
 func (sf *SequenceForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactory, sequences map[string]*MoveFactory) {
-	fmt.Println(depth, prob, "node", nf.Player, nf.Iset)
+	//fmt.Println(depth, prob, "node", nf.Player, nf.Iset)
 
   if !nf.Chance {
-    plExists := false
-    for _, pl := range sf.plNames {
-      if pl == nf.Player {
-        plExists = true
-        break
-      }
-    }
-
-    if !plExists {
-      fmt.Println("Adding name: ", nf.Player)
-      sf.plNames = append(sf.plNames, nf.Player)
-      sf.plSeqs[nf.Player] = make([]string, 1)
-      sf.plSeqs[nf.Player][0] = "\u2205"  // empty sequence
-      sf.plIsets[nf.Player] = make([]string, 0)
-    }
+    sf.addPlayerIfAbsent(nf.Player)
+    sf.addInformationSetIfAbsent(nf.Player, nf.Iset)
   }
 
-	lastMove := sequences[nf.Player]
-
-  if !nf.Chance {
-    isetsForPl := sf.plIsets[nf.Player]
-    isetExists := false
-    for _, plIset := range isetsForPl {
-      if plIset == nf.Iset {
-        isetExists = true
-        break
-      }
-    }
-  	if !isetExists {
-      fmt.Println("adding iset", nf.Player, nf.Iset)
-  		isetsForPl = append(isetsForPl, nf.Iset)
-  		sf.plIsets[nf.Player] = isetsForPl // needed?
-  	}
-  }
-
+  lastMove := sequences[nf.Player]
 	// iset -> lastMove -> -1
 	for _, move := range nf.Moves {
 
@@ -99,18 +69,8 @@ func (sf *SequenceForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactory, 
       sf.plSeqs[nf.Player] = append(sf.plSeqs[nf.Player], move.Name)
     }
 
-		// iset -> move -> 1
-    _, exists := sf.plConstraints[nf.Player]
-    if !exists {
-      sf.plConstraints[nf.Player] = make(map[string]map[string]int)
-    }
-    _, exists = sf.plConstraints[nf.Player][nf.Iset]
-    if !exists {
-      sf.plConstraints[nf.Player][nf.Iset] = make(map[string]int)
-    }
-		sf.plConstraints[nf.Player][nf.Iset][move.Name] = 1
-		sequences[nf.Player] = move
-		fmt.Println("seq", nf.Player, nf.Iset, move.Name)
+		sf.updateConstraints(nf, move)
+    sequences[nf.Player] = move
 		sf.followMove(depth, prob, move, sequences)
 	}
 
@@ -119,9 +79,57 @@ func (sf *SequenceForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactory, 
     lastMoveName = lastMove.Name
   }
   sf.plConstraints[nf.Player][nf.Iset][lastMoveName] = -1
-	fmt.Println("seq revert", nf.Player, nf.Iset, lastMoveName)
+	//fmt.Println("seq revert", nf.Player, nf.Iset, lastMoveName)
 
 	sequences[nf.Player] = lastMove
+}
+
+func (sf *SequenceForm) addPlayerIfAbsent(pl string) {
+  plExists := false
+  for _, plExisting := range sf.plNames {
+    if pl == plExisting {
+      plExists = true
+      break
+    }
+  }
+
+  if !plExists {
+    //fmt.Println("Adding name: ", pl)
+    sf.plNames = append(sf.plNames, pl)
+    sf.plSeqs[pl] = make([]string, 1)
+    sf.plSeqs[pl][0] = "\u2205"  // empty sequence
+    sf.plIsets[pl] = make([]string, 0)
+  }
+}
+
+func (sf *SequenceForm) addInformationSetIfAbsent(pl string, iset string) {
+  isetsForPl := sf.plIsets[pl]
+  isetExists := false
+  for _, plIset := range isetsForPl {
+    if plIset == iset {
+      isetExists = true
+      break
+    }
+  }
+  if !isetExists {
+    //fmt.Println("adding iset", pl, iset)
+    isetsForPl = append(isetsForPl, iset)
+    sf.plIsets[pl] = isetsForPl // needed?
+  }
+}
+
+func (sf *SequenceForm) updateConstraints(nf *NodeFactory, move *MoveFactory) {
+  // iset -> move -> 1
+  _, exists := sf.plConstraints[nf.Player]
+  if !exists {
+    sf.plConstraints[nf.Player] = make(map[string]map[string]int)
+  }
+  _, exists = sf.plConstraints[nf.Player][nf.Iset]
+  if !exists {
+    sf.plConstraints[nf.Player][nf.Iset] = make(map[string]int)
+  }
+  sf.plConstraints[nf.Player][nf.Iset][move.Name] = 1
+  //fmt.Println("seq", nf.Player, nf.Iset, move.Name)
 }
 
 func (sf *SequenceForm) payoffSeqKey(sequences map[string]*MoveFactory, except string) string {
@@ -141,7 +149,7 @@ func (sf *SequenceForm) payoffSeqKey(sequences map[string]*MoveFactory, except s
 }
 
 func (sf *SequenceForm) followMove(depth int, prob *big.Rat, mf *MoveFactory, sequences map[string]*MoveFactory) {
-	fmt.Println(depth, prob, "move", mf.String())
+	//fmt.Println(depth, prob, "move", mf.String())
 
 	var nextProb *big.Rat
 	if mf.Prob != 0 {
@@ -167,7 +175,7 @@ func (sf *SequenceForm) followMove(depth int, prob *big.Rat, mf *MoveFactory, se
       }
       othersKey := sf.payoffSeqKey(sequences, pl)
       payoffRat := new(big.Rat).SetFloat64(payoff)
-      fmt.Println("payoff", pl, "own move", seq.Name, "others move tuple", othersKey, "payoff", payoffRat)
+      //fmt.Println("payoff", pl, "own move", seq.Name, "others move tuple", othersKey, "payoff", payoffRat)
 			sf.plPayoffs[pl][seq.Name][othersKey] = payoffRat
 		}
 	}
@@ -244,7 +252,7 @@ func (sf *SequenceForm) recAppendRow(table *matrixprinter.Table, pl string, idx 
 
     for _, plSeq := range sf.plSeqs[pl] {
       payoff := sf.plPayoffs[pl][plSeq][key]
-      fmt.Println("Looking for payoff", pl, plSeq, key, payoff)
+      //fmt.Println("Looking for payoff", pl, plSeq, key, payoff)
       if payoff != nil {
         if payoff.IsInt() {
           table.Append(payoff.Num().String())
