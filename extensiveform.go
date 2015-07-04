@@ -132,7 +132,7 @@ type ExtensiveForm struct {
 }
 
 func (tree *ExtensiveForm) UnmarshalJSON(bytes []byte) error {
-	fmt.Println("Called UnmarshalJSON")
+	
 	var rootFactory NodeFactory
 	err := json.Unmarshal(bytes, &rootFactory)
 	if err != nil {

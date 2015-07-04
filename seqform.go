@@ -12,7 +12,8 @@ type SequenceForm struct {
 	seed int64
 
 	plPayoffs     map[string]map[string]map[string]*big.Rat // pl -> own move -> (other moves tuple) -> payoff
-	plConstraints map[string]map[string]map[string]int      // pl -> own iset -> own move -> 1 if move in iset, -1 if move into iset, 0 otherwise
+	plConstraints map[string]map[string]map[string]int64      // pl -> own iset -> own move -> 1 if move in iset, -1 if move into iset, 0 otherwise
+  plMaxPayoffs map[string]*big.Rat
 
 	// used to build constraints...
 	// TODO: needed?
@@ -33,7 +34,8 @@ func NewSequenceForm(nf *NodeFactory) *SequenceForm {
 	//sf.isetIndex = make(map[string]int)
 	sf.plIsets = make(map[string][]string)
 	sf.plPayoffs = make(map[string]map[string]map[string]*big.Rat)
-  sf.plConstraints = make(map[string]map[string]map[string]int)
+  sf.plConstraints = make(map[string]map[string]map[string]int64)
+  sf.plMaxPayoffs = make(map[string]*big.Rat)
   sf.plNames = make([]string, 0)
   sf.plSeqs = make(map[string][]string)
   fmt.Println("=====START seqform====")
@@ -41,46 +43,44 @@ func NewSequenceForm(nf *NodeFactory) *SequenceForm {
 	return sf
 }
 
+// TODO: check for perfect recall...
 func (sf *SequenceForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactory, sequences map[string]*MoveFactory) {
-	//fmt.Println(depth, prob, "node", nf.Player, nf.Iset)
+
+  lastMove := sequences[nf.Player]
 
   if !nf.Chance {
     sf.addPlayerIfAbsent(nf.Player)
-    sf.addInformationSetIfAbsent(nf.Player, nf.Iset)
+    sf.addOrVerifyInformationSet(nf.Player, nf.Iset, lastMove)
   }
 
-  lastMove := sequences[nf.Player]
-	// iset -> lastMove -> -1
 	for _, move := range nf.Moves {
 
     if move.Name == "\u2205" {
+      // TODO: quote it or replace it?
       panic("Use of reserved name for empty sequence...")
     }
 
-    seqExists := false
-    for _, seq := range sf.plSeqs[nf.Player] {
-      if seq == move.Name {
-        seqExists = true
-        break
+    if !nf.Chance {
+      seqExists := false
+      for _, seq := range sf.plSeqs[nf.Player] {
+        if seq == move.Name {
+          seqExists = true
+          break
+        }
       }
-    }
 
-    if !seqExists {
-      sf.plSeqs[nf.Player] = append(sf.plSeqs[nf.Player], move.Name)
-    }
+      if !seqExists {
+        sf.plSeqs[nf.Player] = append(sf.plSeqs[nf.Player], move.Name)
+      }
 
-		sf.updateConstraints(nf, move)
+      // iset -> move -> 1
+      sf.plConstraints[nf.Player][nf.Iset][move.Name] = 1
+    }
     sequences[nf.Player] = move
 		sf.followMove(depth, prob, move, sequences)
 	}
 
-  lastMoveName := "\u2205"
-	if lastMove != nil {
-    lastMoveName = lastMove.Name
-  }
-  sf.plConstraints[nf.Player][nf.Iset][lastMoveName] = -1
-	//fmt.Println("seq revert", nf.Player, nf.Iset, lastMoveName)
-
+  // pop the seq stack...
 	sequences[nf.Player] = lastMove
 }
 
@@ -94,7 +94,6 @@ func (sf *SequenceForm) addPlayerIfAbsent(pl string) {
   }
 
   if !plExists {
-    //fmt.Println("Adding name: ", pl)
     sf.plNames = append(sf.plNames, pl)
     sf.plSeqs[pl] = make([]string, 1)
     sf.plSeqs[pl][0] = "\u2205"  // empty sequence
@@ -102,7 +101,8 @@ func (sf *SequenceForm) addPlayerIfAbsent(pl string) {
   }
 }
 
-func (sf *SequenceForm) addInformationSetIfAbsent(pl string, iset string) {
+func (sf *SequenceForm) addOrVerifyInformationSet(pl string, iset string, lastMove *MoveFactory) {
+
   isetsForPl := sf.plIsets[pl]
   isetExists := false
   for _, plIset := range isetsForPl {
@@ -111,25 +111,35 @@ func (sf *SequenceForm) addInformationSetIfAbsent(pl string, iset string) {
       break
     }
   }
-  if !isetExists {
-    //fmt.Println("adding iset", pl, iset)
-    isetsForPl = append(isetsForPl, iset)
-    sf.plIsets[pl] = isetsForPl // needed?
-  }
-}
 
-func (sf *SequenceForm) updateConstraints(nf *NodeFactory, move *MoveFactory) {
-  // iset -> move -> 1
-  _, exists := sf.plConstraints[nf.Player]
-  if !exists {
-    sf.plConstraints[nf.Player] = make(map[string]map[string]int)
+  if !isetExists {
+    sf.plIsets[pl] = append(isetsForPl, iset)
   }
-  _, exists = sf.plConstraints[nf.Player][nf.Iset]
+
+  // ensure constraints data structure
+  _, exists := sf.plConstraints[pl]
   if !exists {
-    sf.plConstraints[nf.Player][nf.Iset] = make(map[string]int)
+    sf.plConstraints[pl] = make(map[string]map[string]int64)
   }
-  sf.plConstraints[nf.Player][nf.Iset][move.Name] = 1
-  //fmt.Println("seq", nf.Player, nf.Iset, move.Name)
+  _, exists = sf.plConstraints[pl][iset]
+  if !exists {
+    sf.plConstraints[pl][iset] = make(map[string]int64)
+  }
+
+  var lastMoveName string
+  if lastMove == nil {
+    lastMoveName = "\u2205"
+  } else {
+    lastMoveName = lastMove.Name
+  }
+
+  // if iset existed, this should already be set to -1, else we have imperfect recall..
+  if isetExists && sf.plConstraints[pl][iset][lastMoveName] != -1 {
+    panic("Imperfect Recall!!!")  // TODO: switch to return an error...
+  }
+
+  // constraint: iset -> lastMove -> -1
+  sf.plConstraints[pl][iset][lastMoveName] = -1
 }
 
 func (sf *SequenceForm) payoffSeqKey(sequences map[string]*MoveFactory, except string) string {
@@ -175,6 +185,10 @@ func (sf *SequenceForm) followMove(depth int, prob *big.Rat, mf *MoveFactory, se
       }
       othersKey := sf.payoffSeqKey(sequences, pl)
       payoffRat := new(big.Rat).SetFloat64(payoff)
+      maxPayoff := sf.plMaxPayoffs[pl]
+      if maxPayoff == nil || payoffRat.Cmp(maxPayoff) > 0 {
+        sf.plMaxPayoffs[pl] = payoffRat
+      }
       //fmt.Println("payoff", pl, "own move", seq.Name, "others move tuple", othersKey, "payoff", payoffRat)
 			sf.plPayoffs[pl][seq.Name][othersKey] = payoffRat
 		}
@@ -185,7 +199,6 @@ func (sf *SequenceForm) String() string {
 
 	table := matrixprinter.NewTable()
 
-  fmt.Println("seqform::String")
   for _, pl := range sf.plNames {
 	  table.Append(pl)
   	for _, seq := range sf.plSeqs[pl] {

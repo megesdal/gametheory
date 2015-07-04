@@ -7,7 +7,6 @@ import (
 
 func TestUnmarshal(t *testing.T) {
 
-	fmt.Println("Start TestUnmarshal")
 	gameJSON := []byte(`{
     "player": "A",
     "iset": "A1",
