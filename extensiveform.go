@@ -132,7 +132,7 @@ type ExtensiveForm struct {
 }
 
 func (tree *ExtensiveForm) UnmarshalJSON(bytes []byte) error {
-	
+
 	var rootFactory NodeFactory
 	err := json.Unmarshal(bytes, &rootFactory)
 	if err != nil {
@@ -148,7 +148,9 @@ func (tree *ExtensiveForm) UnmarshalJSON(bytes []byte) error {
 	// so the input sequence is the (move_p1, move_p2, ...)
 	// the expectation of the payoffs are taken
 
-	tree.root = &rootFactory;
+	tree.root = &rootFactory
+	// TODO: validate information sets and move name uniqueness...
+
 	return nil
 }
 
@@ -163,8 +165,8 @@ func recString(w io.Writer, depth int, n *NodeFactory, openDepths map[int]bool) 
 
 	numLines := 1
 	if !n.Chance {
-		for i := 0; i < depth - 1; i++ {
-			if (openDepths[i]) {
+		for i := 0; i < depth-1; i++ {
+			if openDepths[i] {
 				io.WriteString(w, "| ")
 			} else {
 				io.WriteString(w, "  ")
@@ -173,20 +175,20 @@ func recString(w io.Writer, depth int, n *NodeFactory, openDepths map[int]bool) 
 		if depth != 0 {
 			io.WriteString(w, "\\-")
 		}
-	  io.WriteString(w, n.Player)
+		io.WriteString(w, n.Player)
 		io.WriteString(w, "::")
 		io.WriteString(w, n.Iset)
-	  io.WriteString(w, "\n")
+		io.WriteString(w, "\n")
 		depth++
 	} else {
 		numLines = 0
 	}
 
 	for i, move := range n.Moves {
-		if i != len(n.Moves) - 1 {
-			openDepths[depth - 1] = true
+		if i != len(n.Moves)-1 {
+			openDepths[depth-1] = true
 		} else {
-			openDepths[depth - 1] = false
+			openDepths[depth-1] = false
 		}
 		numLines += moveString(w, depth, move, openDepths)
 	}
@@ -195,15 +197,15 @@ func recString(w io.Writer, depth int, n *NodeFactory, openDepths map[int]bool) 
 
 func moveString(w io.Writer, depth int, m *MoveFactory, openDepths map[int]bool) int {
 
-	for i := 0; i < depth - 1; i++ {
-		if (openDepths[i]) {
+	for i := 0; i < depth-1; i++ {
+		if openDepths[i] {
 			io.WriteString(w, "| ")
 		} else {
 			io.WriteString(w, "  ")
 		}
 	}
 
-	if !openDepths[depth - 1] {
+	if !openDepths[depth-1] {
 		io.WriteString(w, "\\-")
 	} else {
 		io.WriteString(w, "+-")
@@ -217,7 +219,7 @@ func moveString(w io.Writer, depth int, m *MoveFactory, openDepths map[int]bool)
 	numLines := 1
 	if m.Next != nil {
 		io.WriteString(w, "\n")
-		numLines += recString(w, depth + 1, m.Next, openDepths)
+		numLines += recString(w, depth+1, m.Next, openDepths)
 	} else if m.Outcome != nil {
 		outcomeStrs := make([]string, len(m.Outcome))
 		for i, plPayoff := range m.Outcome {

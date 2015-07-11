@@ -1,13 +1,13 @@
 package gametheory
 
 import (
-  "encoding/json"
+	"encoding/json"
 	"fmt"
 	"testing"
 )
 
 func TestSequenceFormString(t *testing.T) {
-  gameJSON := []byte(`{
+	gameJSON := []byte(`{
     "player": "A",
     "iset": "A1",
     "moves": [{
@@ -124,10 +124,10 @@ func TestSequenceFormString(t *testing.T) {
 
 	var rootFactory NodeFactory
 	err := json.Unmarshal(gameJSON, &rootFactory)
-	if (err != nil) {
-	  t.Error(err)
+	if err != nil {
+		t.Error(err)
 	}
 
-  sf := NewSequenceForm(&rootFactory)
-  fmt.Println(sf.String())
+	sf := NewSequenceForm(&rootFactory)
+	fmt.Println(sf.String())
 }
