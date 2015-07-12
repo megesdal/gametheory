@@ -130,4 +130,6 @@ func TestSequenceFormString(t *testing.T) {
 
 	sf := NewSequenceForm(&rootFactory)
 	fmt.Println(sf.String())
+
+	sf.CreateLCP()
 }
