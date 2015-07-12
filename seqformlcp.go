@@ -26,6 +26,7 @@ func (sf *SequenceForm) CreateLCP() {
 	}
 
 	// TODO: payment adjustment
+	maxpay := maxPayoffs(sf)
 
 	// preprocess priors here so that we can re-randomize the priors without having to reconstruct this object?
 	//for (Player pl = firstPlayer; pl != null; pl = pl.next) {
@@ -35,6 +36,8 @@ func (sf *SequenceForm) CreateLCP() {
 	// TODO: do I need the + 1 since I have the empty sequence already?
 	pl1 := sf.plNames[0]
 	pl2 := sf.plNames[1]
+	maxpay1 := maxpay[pl1]
+	maxpay2 := maxpay[pl2]
 	seqs1 := sf.plSeqs[pl1]
 	seqs2 := sf.plSeqs[pl2]
 	isets1 := sf.plIsets[pl1]
@@ -53,7 +56,8 @@ func (sf *SequenceForm) CreateLCP() {
 			if pl1Payoff == nil {
 				pl1Payoff = new(big.Rat)
 			} else {
-				pl1Payoff.Neg(pl1Payoff)
+				tmp := new(big.Rat)
+				pl1Payoff = tmp.Add(tmp, maxpay1).Sub(tmp, pl1Payoff)
 			}
 			M[i*n+j+len(seqs1)+len(isets2)+1] = pl1Payoff // -A
 
@@ -61,7 +65,9 @@ func (sf *SequenceForm) CreateLCP() {
 			if pl2Payoff == nil {
 				pl2Payoff = new(big.Rat)
 			} else {
-				pl2Payoff.Neg(pl2Payoff)
+				tmp := new(big.Rat)
+				fmt.Println(pl2, maxpay2, pl2Payoff)
+				pl2Payoff = tmp.Add(tmp, maxpay2).Sub(tmp, pl2Payoff)
 			}
 			M[(j+len(seqs1)+len(isets2)+1)*n+i] = pl2Payoff // -B\T
 		}
@@ -97,11 +103,11 @@ func (sf *SequenceForm) CreateLCP() {
 
 	d := sf.coveringVector(M, q)
 
-	_, err := lemke.Solve(lemke.NewLCP(M, q), d)
+	z, err := lemke.Solve(lemke.NewLCP(M, q), d)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Println("SUCCESS...")
+		fmt.Println("SUCCESS...", z)
 	}
 }
 
@@ -218,4 +224,31 @@ func (sf *SequenceForm) assignIsetPriors(pl string, iset string, priors map[stri
 			}
 		}
 	}
+}
+
+// TODO: this doesn't need to be 2-player only...
+func maxPayoffs(sf *SequenceForm) map[string]*big.Rat {
+
+	pl1 := sf.plNames[0]
+	pl2 := sf.plNames[1]
+	var maxpay1 *big.Rat
+	var maxpay2 *big.Rat
+	for _, pl1Seq := range sf.plSeqs[pl1] {
+		for _, pl2Seq := range sf.plSeqs[pl2] {
+			payoff1 := sf.plPayoffs[pl1][pl1Seq][pl2Seq]
+			if payoff1 != nil && (maxpay1 == nil || maxpay1.Cmp(payoff1) < 0) {
+				maxpay1 = payoff1
+			}
+
+			payoff2 := sf.plPayoffs[pl2][pl2Seq][pl1Seq]
+			if payoff2 != nil && (maxpay2 == nil || maxpay2.Cmp(payoff2) < 0) {
+				maxpay2 = payoff2
+			}
+		}
+	}
+
+	maxpay := make(map[string]*big.Rat)
+	maxpay[pl1] = maxpay1
+	maxpay[pl2] = maxpay2
+	return maxpay
 }
