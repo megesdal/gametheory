@@ -10,15 +10,14 @@ type SequenceForm struct {
 	seed int64
 
 	plPayoffs     map[string]map[string]map[string]*big.Rat // pl -> own move -> (other moves tuple) -> payoff
-	plConstraints map[string]map[string]map[string]int64    // pl -> own iset -> own move -> 1 if move in iset, -1 if move into iset, 0 otherwise
+
+	// TODO: store an iset's moves and we don't need this...
+	plConstraints map[string]map[string]map[string]int64    // pl -> own iset -> own move -> 1 if move from iset, -1 if move into iset, 0 otherwise
 	plMaxPayoffs  map[string]*big.Rat
 
 	plSeqDepths   map[string]map[string]int    // pl -> own move -> depth
 	plIsetDefSeqs map[string]map[string]string // pl -> own iset -> move into iset (constraint == -1)
-	// used to build constraints...
-	// TODO: needed?
-	//seqIndex  map[string]int // move/seq name -> col ??
-	//isetIndex map[string]int // iset name -> row  ??
+	plSeqIsets map[string]map[string]string // pl -> move from... -> iset
 
 	plIsets map[string][]string // pl -> [own iset]
 	plSeqs  map[string][]string // pl -> [own move/seq]
@@ -38,12 +37,12 @@ func NewSequenceForm(nf *NodeFactory) *SequenceForm {
 	sf.plMaxPayoffs = make(map[string]*big.Rat)
 	sf.plSeqDepths = make(map[string]map[string]int)
 	sf.plIsetDefSeqs = make(map[string]map[string]string)
+	sf.plSeqIsets = make(map[string]map[string]string)
 	sf.plNames = make([]string, 0)
 	sf.plSeqs = make(map[string][]string)
+
 	fmt.Println("=====START seqform====")
 	sf.recVisitNode(0, big.NewRat(1, 1), nf, make(map[string]*MoveFactory))
-
-	// TODO: make iset seqin local?
 
 	// sort plSeqs and plIsets
 	for pl, seqs := range sf.plSeqs {
@@ -98,6 +97,7 @@ func (sf *SequenceForm) recVisitNode(depth int, prob *big.Rat, nf *NodeFactory, 
 			}
 
 			// iset -> move -> 1
+			sf.plSeqIsets[nf.Player][move.Name] = nf.Iset
 			sf.plConstraints[nf.Player][nf.Iset][move.Name] = 1
 		}
 		sequences[nf.Player] = move
@@ -126,6 +126,7 @@ func (sf *SequenceForm) addPlayerIfAbsent(pl string) {
 		sf.plSeqDepths[pl] = make(map[string]int)
 		sf.plConstraints[pl] = make(map[string]map[string]int64)
 		sf.plIsetDefSeqs[pl] = make(map[string]string)
+		sf.plSeqIsets[pl] = make(map[string]string)
 	}
 }
 
