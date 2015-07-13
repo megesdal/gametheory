@@ -10,6 +10,7 @@ type SequenceForm struct {
 	seed int64
 
 	plPayoffs     map[string]map[string]map[string]*big.Rat // pl -> own move -> (other moves tuple) -> payoff
+	plPayoffProbs     map[string]map[string]map[string]*big.Rat // pl -> own move -> (other moves tuple) -> payoff realization prob
 
 	// TODO: store an iset's moves and we don't need this...
 	plConstraints map[string]map[string]map[string]int64    // pl -> own iset -> own move -> 1 if move from iset, -1 if move into iset, 0 otherwise
@@ -33,6 +34,7 @@ func NewSequenceForm(nf *NodeFactory) *SequenceForm {
 	//sf.isetIndex = make(map[string]int)
 	sf.plIsets = make(map[string][]string)
 	sf.plPayoffs = make(map[string]map[string]map[string]*big.Rat)
+	sf.plPayoffProbs = make(map[string]map[string]map[string]*big.Rat)
 	sf.plConstraints = make(map[string]map[string]map[string]int64)
 	sf.plMaxPayoffs = make(map[string]*big.Rat)
 	sf.plSeqDepths = make(map[string]map[string]int)
@@ -123,6 +125,7 @@ func (sf *SequenceForm) addPlayerIfAbsent(pl string) {
 		sf.plSeqs[pl][0] = "\u2205" // empty sequence
 		sf.plIsets[pl] = make([]string, 0)
 		sf.plPayoffs[pl] = make(map[string]map[string]*big.Rat)
+		sf.plPayoffProbs[pl] = make(map[string]map[string]*big.Rat)
 		sf.plSeqDepths[pl] = make(map[string]int)
 		sf.plConstraints[pl] = make(map[string]map[string]int64)
 		sf.plIsetDefSeqs[pl] = make(map[string]string)
@@ -208,12 +211,19 @@ func (sf *SequenceForm) followMove(depth int, prob *big.Rat, mf *MoveFactory, se
 			}
 			othersKey := sf.payoffSeqKey(sequences, pl)
 			payoffRat := new(big.Rat).SetFloat64(payoff)
+
 			maxPayoff := sf.plMaxPayoffs[pl]
 			if maxPayoff == nil || payoffRat.Cmp(maxPayoff) > 0 {
 				sf.plMaxPayoffs[pl] = payoffRat
+				fmt.Println("Max pay is:", payoffRat)
 			}
+
 			//fmt.Println("payoff", pl, "own move", seq.Name, "others move tuple", othersKey, "payoff", payoffRat)
-			sf.plPayoffs[pl][seq.Name][othersKey] = payoffRat
+			if sf.plPayoffProbs[pl][seq.Name] == nil {
+				sf.plPayoffProbs[pl][seq.Name] = make(map[string]*big.Rat)
+			}
+			sf.plPayoffProbs[pl][seq.Name][othersKey] = nextProb
+			sf.plPayoffs[pl][seq.Name][othersKey] = payoffRat //new(big.Rat).Mul(payoffRat, prob)  // TODO: store the prob somewhere...?
 		}
 	}
 }

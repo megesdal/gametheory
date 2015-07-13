@@ -1,8 +1,10 @@
 package gametheory
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/megesdal/gametheory/lemke"
+	"github.com/megesdal/matrixprinter"
 	"math/big"
 )
 
@@ -25,9 +27,6 @@ func (sf *SequenceForm) CreateLCP() {
 		panic("Sequence Form LCP must have two and only two players")
 	}
 
-	// TODO: payment adjustment
-	maxpay := maxPayoffs(sf)
-
 	// preprocess priors here so that we can re-randomize the priors without having to reconstruct this object?
 	//for (Player pl = firstPlayer; pl != null; pl = pl.next) {
 	//		behavtorealprob(pl);
@@ -36,40 +35,49 @@ func (sf *SequenceForm) CreateLCP() {
 	// TODO: do I need the + 1 since I have the empty sequence already?
 	pl1 := sf.plNames[0]
 	pl2 := sf.plNames[1]
-	maxpay1 := maxpay[pl1]
-	maxpay2 := maxpay[pl2]
+	maxpay1 := sf.plMaxPayoffs[pl1]
+	maxpay2 := sf.plMaxPayoffs[pl2]
 	seqs1 := sf.plSeqs[pl1]
 	seqs2 := sf.plSeqs[pl2]
 	isets1 := sf.plIsets[pl1]
 	isets2 := sf.plIsets[pl2]
-	n := len(seqs1) + len(isets2) + len(seqs2) + len(isets1)
+	n := len(seqs1) + len(isets2) + 1 + len(seqs2) + len(isets1) + 1
 	M := make([]*big.Rat, n*n)
 	for i := 0; i < n*n; i++ {
 		M[i] = new(big.Rat)
 	}
 
+	fmt.Println("Maxpay1:", maxpay1)
 	// -A and -B\T
 	for i, pl1Seq := range seqs1 {
 		for j, pl2Seq := range seqs2 {
-			// TODO: normalize payments by payment adjust here?
 			pl1Payoff := sf.plPayoffs[pl1][pl1Seq][pl2Seq]
+			if pl1Payoff != nil {
+				fmt.Println("Starting payoff", pl1Payoff)
+			}
 			if pl1Payoff == nil {
 				pl1Payoff = new(big.Rat)
 			} else {
-				tmp := new(big.Rat)
+				tmp := big.NewRat(1, 1)
 				pl1Payoff = tmp.Add(tmp, maxpay1).Sub(tmp, pl1Payoff)
 			}
-			M[i*n+j+len(seqs1)+len(isets2)] = pl1Payoff // -A
+			if pl1Payoff.Sign() != 0 {
+				pl1Payoff.Mul(pl1Payoff, sf.plPayoffProbs[pl1][pl1Seq][pl2Seq])
+				fmt.Println("Final payoff", pl1Payoff)
+			}
+			M[i*n+j+len(seqs1)+len(isets2)+1] = pl1Payoff // -A
 
 			pl2Payoff := sf.plPayoffs[pl2][pl2Seq][pl1Seq]
 			if pl2Payoff == nil {
 				pl2Payoff = new(big.Rat)
 			} else {
-				tmp := new(big.Rat)
-				fmt.Println(pl2, maxpay2, pl2Payoff)
+				tmp := big.NewRat(1, 1)
 				pl2Payoff = tmp.Add(tmp, maxpay2).Sub(tmp, pl2Payoff)
 			}
-			M[(j+len(seqs1)+len(isets2))*n+i] = pl2Payoff // -B\T
+			if pl2Payoff.Sign() != 0 {
+				pl2Payoff.Mul(pl2Payoff, sf.plPayoffProbs[pl2][pl2Seq][pl1Seq])
+			}
+			M[(j+len(seqs1)+len(isets2)+1)*n+i] = pl2Payoff // -B\T
 		}
 	}
 
@@ -77,24 +85,30 @@ func (sf *SequenceForm) CreateLCP() {
 	for i, pl1Iset := range isets1 {
 		for j, pl1Seq := range seqs1 {
 			value := big.NewRat(sf.plConstraints[pl1][pl1Iset][pl1Seq], 1)
-			M[j*n+i+len(seqs1)+len(isets2)+len(seqs2)] = new(big.Rat).Neg(value) // -E\T
-			M[(i+len(seqs1)+len(isets2)+len(seqs2))*n+j] = value                 // E
+			M[j*n+i+len(seqs1)+len(isets2)+1+len(seqs2)+1] = new(big.Rat).Neg(value) // -E\T
+			M[(i+len(seqs1)+len(isets2)+1+len(seqs2)+1)*n+j] = value                 // E
 		}
 	}
+	// handle "empty" iset into first iset...
+	M[len(seqs1)+len(isets2)+1+len(seqs2)] = big.NewRat(-1, 1) // -E\T
+	M[(len(seqs1)+len(isets2)+1+len(seqs2))*n] = big.NewRat(1, 1)                 // E
 
 	// F and -F\T
 	for i, pl2Iset := range isets2 {
 		for j, pl2Seq := range seqs2 {
 			value := big.NewRat(sf.plConstraints[pl2][pl2Iset][pl2Seq], 1)
-			M[(i+len(seqs1))*n+j+len(seqs1)+len(isets2)] = value                   // F
-			M[(j+len(seqs1)+len(isets2))*n+i+len(seqs1)] = new(big.Rat).Neg(value) // -F\T
+			M[(i+len(seqs1)+1)*n+j+len(seqs1)+len(isets2)+1] = value                   // F
+			M[(j+len(seqs1)+len(isets2)+1)*n+i+len(seqs1)+1] = new(big.Rat).Neg(value) // -F\T
 		}
 	}
+	// handle "empty" iset into first iset...
+	M[len(seqs1)*n+len(seqs1)+len(isets2)+1] = big.NewRat(1,1)  // F
+	M[(len(seqs1)+len(isets2)+1)*n+len(seqs1)] = big.NewRat(-1,1)  // -F\T
 
 	// define RHS q,  using special shape of SF constraints RHS e,f
 	q := make([]*big.Rat, n)
 	for i := 0; i < n; i++ {
-		if i == len(seqs1) || i == len(seqs1)+len(isets2)+len(seqs2) {
+		if i == len(seqs1) || i == len(seqs1)+len(isets2)+1+len(seqs2) {
 			q[i] = big.NewRat(-1, 1)
 		} else {
 			q[i] = new(big.Rat)
@@ -117,7 +131,7 @@ func (sf *SequenceForm) coveringVector(M []*big.Rat, q []*big.Rat) []*big.Rat {
 	n := len(q)
 	pl1 := sf.plNames[0]
 	pl2 := sf.plNames[1]
-	offset := len(sf.plSeqs[pl1]) + len(sf.plIsets[pl2])
+	offset := len(sf.plSeqs[pl1]) + len(sf.plIsets[pl2]) + 1
 
 	plPriors := make(map[string]map[string]*big.Rat)
 	plPriors[pl1] = make(map[string]*big.Rat)
@@ -152,7 +166,41 @@ func (sf *SequenceForm) coveringVector(M []*big.Rat, q []*big.Rat) []*big.Rat {
 		}
 	}
 
+	table := matrixprinter.NewTable()
+	table.Append("M")
+	for i:= 1; i < n; i++ {
+		table.Append("")
+	}
+	table.Append("d")
+	table.Append("q")
+	table.EndRow()
+
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			table.Append(ratstr(M[i*n + j]))
+		}
+		table.Append(ratstr(d[i]))
+		table.Append(ratstr(q[i]))
+		table.EndRow()
+	}
+
+	var buffer bytes.Buffer
+	table.Print(&buffer)
+	fmt.Println(buffer.String())
+
 	return d
+}
+
+func ratstr(rat *big.Rat) string {
+	if rat.Sign() == 0 {
+		return "."
+	}
+
+	if rat.IsInt() {
+		return rat.Num().String()
+	}
+
+	return rat.String()
 }
 
 // I could just do a depth first visit on the tree again... using chance if it exists and assigning otherwise
@@ -227,40 +275,13 @@ func (sf *SequenceForm) assignIsetPriors(pl string, iset string, priors map[stri
 	}
 }
 
-// TODO: this doesn't need to be 2-player only...
-func maxPayoffs(sf *SequenceForm) map[string]*big.Rat {
-
-	pl1 := sf.plNames[0]
-	pl2 := sf.plNames[1]
-	var maxpay1 *big.Rat
-	var maxpay2 *big.Rat
-	for _, pl1Seq := range sf.plSeqs[pl1] {
-		for _, pl2Seq := range sf.plSeqs[pl2] {
-			payoff1 := sf.plPayoffs[pl1][pl1Seq][pl2Seq]
-			if payoff1 != nil && (maxpay1 == nil || maxpay1.Cmp(payoff1) < 0) {
-				maxpay1 = payoff1
-			}
-
-			payoff2 := sf.plPayoffs[pl2][pl2Seq][pl1Seq]
-			if payoff2 != nil && (maxpay2 == nil || maxpay2.Cmp(payoff2) < 0) {
-				maxpay2 = payoff2
-			}
-		}
-	}
-
-	maxpay := make(map[string]*big.Rat)
-	maxpay[pl1] = maxpay1
-	maxpay[pl2] = maxpay2
-	return maxpay
-}
-
 // pl -> seq -> prob
 func (sf *SequenceForm) parseLemkeSolution(z []*big.Rat) map[string]map[string]*big.Rat {
 
 	pl1 := sf.plNames[0]
 	pl2 := sf.plNames[1]
 	probs := make(map[string]map[string]*big.Rat)
-	offset := len(sf.plSeqs[pl1]) + len(sf.plIsets[pl2])
+	offset := len(sf.plSeqs[pl1]) + len(sf.plIsets[pl2]) + 1
 
 	probs1 := make([]*big.Rat, len(sf.plSeqs[pl1]))
 	for i := 0; i < len(probs1); i++ {
